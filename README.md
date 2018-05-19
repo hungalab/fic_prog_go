@@ -18,7 +18,7 @@ FiCのRPi上で以下のようにする
 
 golang製なので，ビルドもできる。
 
-   $ go build ficprog.go
+    $ go build ficprog.go
 
 すると，ficprog というバイナリがビルドされているはず。
 
