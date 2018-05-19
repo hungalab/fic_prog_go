@@ -1,25 +1,25 @@
-FiC FPGA configurator (golang $BHG(B)
+FiC FPGA configurator (golang 版)
 ----
 
 nyacom (C) 2018.05 <kzh@nyacom.net>
 
-* yakuza$BMM$N(BFiC prog$B$r(Bgolang$B$G>F$-D>$7$?%P!<%8%g%s(B
-* $B$*$=$i$/!$$3$C$A$N$[$&$,Cf?H2?$d$C$F$k$+$o$+$j$d$9$$%O%:(B...?
+* yakuza様のFiC progをgolangで焼き直したバージョン
+* おそらく，こっちのほうが中身何やってるかわかりやすいハズ...?
 
-$B;H$$J}(B
+使い方
 ----
 
-FiC$B$N(BRPi$B>e$G0J2<$N$h$&$K$9$k(B
+FiCのRPi上で以下のようにする
 
     $ go run ficprog.go ledtest.bin
 
-$B%S%k%I$N;EJ}(B
+ビルドの仕方
 ----
 
-golang$B@=$J$N$G!$%S%k%I$b$G$-$k!#(B
+golang製なので，ビルドもできる。
 
    $ go build ficprog.go
 
-$B$9$k$H!$(Bficprog $B$H$$$&%P%$%J%j$,%S%k%I$5$l$F$$$k$O$:!#(B
+すると，ficprog というバイナリがビルドされているはず。
 
 
