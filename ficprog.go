@@ -106,8 +106,8 @@ func prog(infile string) {
 		log.Fatal(err)
 	}
 
-	file_size_kb := int(f_info.Size() / 1024)
-	fmt.Println("PROG: File size : ", file_size_kb, " KB")
+	file_size := f_info.Size()
+	fmt.Println("PROG: File size : ", file_size, " B")
 
 	gpio.Set_bus(uint32(PIN["RP_CCLK"]))
 
@@ -129,9 +129,9 @@ func prog(infile string) {
 			log.Fatal(err)
 		}
 
-		read_byte += (BUFSIZE / 1024)
+		read_byte += n
 
-		for i := 0; i < len(buf); i = i+2 {
+		for i := 0; i < n; i = i+2 {
 			gpio.Clr_bus(0x00ffff00 | uint32(PIN_BIT["RP_CCLK"]))
 			//gpio.Set_bus(((uint32(buf[i]) << 8 | uint32(buf[i+1])) << 8) & 0x00ffff00)
 			gpio.Set_bus(((uint32(buf[i+1]) << 8 | uint32(buf[i])) << 8) & 0x00ffff00)
@@ -146,7 +146,7 @@ func prog(infile string) {
 		}
 
 		fmt.Printf("PROG: %d / %d (%.2f %%)\n",
-			read_byte, file_size_kb, float32(read_byte) / float32(file_size_kb) * 100)
+			read_byte, file_size, float32(read_byte) / float32(file_size) * 100)
 	}
 
 	gpio.Clr_bus(uint32(PIN_BIT["RP_CCLK"]))	// Negate CLK
