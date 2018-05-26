@@ -5,6 +5,7 @@ nyacom (C) 2018.05 <kzh@nyacom.net>
 
 * yakuza様のFiC progをgolangで焼き直したバージョン
 * おそらく，こっちのほうが中身何やってるかわかりやすいハズ...?
+* このプログラマはsudoしなくてもユーザ権限で動く
 
 使い方
 ----
@@ -18,7 +19,7 @@ FiCのRPi上で以下のようにする
 
 golang製なので，ビルドもできる。
 
-   $ go build ficprog.go
+    $ go build ficprog.go
 
 すると，ficprog というバイナリがビルドされているはず。
 
