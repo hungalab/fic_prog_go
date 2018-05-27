@@ -21,6 +21,9 @@ import (
 )
 
 const (
+	LOCKFILE = "/tmp/gpio.lock"
+	TIMEOUT = 5
+	LOCKEXPIRE = 120
 	BUFSIZE = (2*1024*1024)
 )
 
@@ -81,6 +84,38 @@ var PIN_BIT = map[string] uint {
 	"RP_PWOK" : (1 << PIN["RP_PWOK"]),
 	"RP_G_CKSEL" : (1 << PIN["RP_G_CKSEL"]),
 	"RP_CSI" : (1 << PIN["RP_CSI"]),
+}
+
+//-----------------------------------------------------------------------------
+// Create lockfile before GPIO operation
+//-----------------------------------------------------------------------------
+func gpio_lock() {
+	t1 := time.Now()
+	for stat, err := os.Stat(LOCKFILE); !os.IsNotExist(err); {
+		// Check if the lockfile is too old -> bug?
+		if (time.Now().Sub(stat.ModTime())).Seconds() > LOCKEXPIRE {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+
+		t2 := time.Now()
+		if (t2.Sub(t1)).Seconds() > TIMEOUT {
+			log.Fatal("timeout")
+		}
+	}
+
+	fd, err := os.OpenFile(LOCKFILE, os.O_CREATE, 0666);
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fd.Close()
+}
+
+func gpio_unlock() {
+	if err:= os.Remove(LOCKFILE); err != nil {
+		log.Fatal(err)
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -218,6 +253,9 @@ func help_str() {
 func main() {
 	infile := os.Args[1]
 	fmt.Println("Filename: ", infile)
+
+	gpio_lock();
+	defer gpio_unlock();
 
 	setup()
 	prog(infile)
