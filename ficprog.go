@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	BUFSIZE = (1024*1024)
+	BUFSIZE = (2*1024*1024)
 )
 
 // PRi PINS
@@ -36,6 +36,18 @@ var PIN = map[string] uint {
 	"RP_CD1" : 9,
 	"RP_CD2" : 10,
 	"RP_CD3" : 11,
+	"RP_CD4" : 12,
+	"RP_CD5" : 13,
+	"RP_CD6" : 14,
+	"RP_CD7" : 15,
+	"RP_CD8" : 16,
+	"RP_CD9" : 17,
+	"RP_CD10" : 18,
+	"RP_CD11" : 19,
+	"RP_CD12" : 20,
+	"RP_CD13" : 21,
+	"RP_CD14" : 22,
+	"RP_CD15" : 23,
 
 	"RP_PWOK" : 24,
 	"RP_G_CKSEL" : 25,
@@ -53,6 +65,18 @@ var PIN_BIT = map[string] uint {
 	"RP_CD1" : (1 << PIN["RP_CD1"]),
 	"RP_CD2" : (1 << PIN["RP_CD2"]),
 	"RP_CD3" : (1 << PIN["RP_CD3"]),
+	"RP_CD4" : (1 << PIN["RP_CD4"]),
+	"RP_CD5" : (1 << PIN["RP_CD5"]),
+	"RP_CD6" : (1 << PIN["RP_CD6"]),
+	"RP_CD7" : (1 << PIN["RP_CD7"]),
+	"RP_CD8" : (1 << PIN["RP_CD8"]),
+	"RP_CD9" : (1 << PIN["RP_CD9"]),
+	"RP_CD10" : (1 << PIN["RP_CD10"]),
+	"RP_CD11" : (1 << PIN["RP_CD11"]),
+	"RP_CD12" : (1 << PIN["RP_CD12"]),
+	"RP_CD13" : (1 << PIN["RP_CD13"]),
+	"RP_CD14" : (1 << PIN["RP_CD14"]),
+	"RP_CD15" : (1 << PIN["RP_CD15"]),
 
 	"RP_PWOK" : (1 << PIN["RP_PWOK"]),
 	"RP_G_CKSEL" : (1 << PIN["RP_G_CKSEL"]),
@@ -70,7 +94,7 @@ func setup() {
 			}
 			default: {
 				gpio.Set_output(v)
-				gpio.Clr_pin(v)
+				gpio.Clr_bus(1<<v)
 			}
 		}
 	}
@@ -109,7 +133,7 @@ func prog(infile string) {
 	file_size := f_info.Size()
 	fmt.Println("PROG: File size : ", file_size, " B")
 
-	gpio.Set_bus(uint32(PIN["RP_CCLK"]))
+	//gpio.Clr_bus(uint32(PIN["RP_CCLK"]))
 
 	fmt.Println("PROG: Programming...")
 	buf := make([]byte, BUFSIZE)
@@ -149,7 +173,7 @@ func prog(infile string) {
 			read_byte, file_size, float32(read_byte) / float32(file_size) * 100)
 	}
 
-	gpio.Clr_bus(uint32(PIN_BIT["RP_CCLK"]))	// Negate CLK
+	//gpio.Clr_bus(uint32(PIN_BIT["RP_CCLK"]))	// Negate CLK
 
 	fmt.Println("PROG: Waiting FPGA done")
 
