@@ -67,6 +67,12 @@ func Close() {
 }
 
 //-----------------------------------------------------------------------------
+func Set_all_input() {
+	mem32[0] = 0x00	// GPFSEL0
+	mem32[1] = 0x00	// GPFSEL1
+	mem32[2] = 0x00 // GPFSEL2
+}
+
 func Set_input(pin uint) {
 	mem32[(pin/10)] &= ^(7 << ((pin % 10) * 3))
 }
@@ -77,19 +83,19 @@ func Set_output(pin uint) {
 }
 //-----------------------------------------------------------------------------
 func Set_pin(pin uint) {
-	mem32[7] = Get_bus() | ((1 << pin) & 0x0fffffff)
+	mem32[7] = Get_bus() | (1 << pin)
 }
 
 func Clr_pin(pin uint) {
-	mem32[10] = Get_bus() | ((1 << pin) & 0x0fffffff)
+	mem32[10] = Get_bus() | (1 << pin)
 }
 
 func Set_bus(v uint32) {
-	mem32[7] = (v & 0x0fffffff)
+	mem32[7] = v
 }
 
 func Clr_bus(v uint32) {
-	mem32[10] = (v & 0x0fffffff)
+	mem32[10] = v
 }
 
 func Get_pin(pin uint) uint32 {
@@ -97,7 +103,7 @@ func Get_pin(pin uint) uint32 {
 }
 
 func Get_bus() uint32 {
-	return mem32[13] & 0x0fffffff
+	return mem32[13]
 }
 
 //func main() {

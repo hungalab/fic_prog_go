@@ -30,7 +30,6 @@ const (
 // PRi PINS
 var PIN = map[string] uint {
 	"RP_INIT" : 4,
-	"RP_RDWR" : 27,
 	"RP_PROG" : 5,
 	"RP_DONE" : 6,
 	"RP_CCLK" : 7,
@@ -51,15 +50,17 @@ var PIN = map[string] uint {
 	"RP_CD13" : 21,
 	"RP_CD14" : 22,
 	"RP_CD15" : 23,
+	"RP_CD16" : 24,
+	"RP_CD17" : 25,
 
 	"RP_PWOK" : 24,
 	"RP_G_CKSEL" : 25,
 	"RP_CSI" : 26,
+	"RP_RDWR" : 27,
 }
 
 var PIN_BIT = map[string] uint {
 	"RP_INIT" : (1 << PIN["RP_INIT"]),
-	"RP_RDWR" : (1 << PIN["RP_RDWR"]),
 	"RP_PROG" : (1 << PIN["RP_PROG"]),
 	"RP_DONE" : (1 << PIN["RP_DONE"]),
 	"RP_CCLK" : (1 << PIN["RP_CCLK"]),
@@ -80,10 +81,13 @@ var PIN_BIT = map[string] uint {
 	"RP_CD13" : (1 << PIN["RP_CD13"]),
 	"RP_CD14" : (1 << PIN["RP_CD14"]),
 	"RP_CD15" : (1 << PIN["RP_CD15"]),
+	"RP_CD16" : (1 << PIN["RP_CD16"]),
+	"RP_CD17" : (1 << PIN["RP_CD17"]),
 
 	"RP_PWOK" : (1 << PIN["RP_PWOK"]),
 	"RP_G_CKSEL" : (1 << PIN["RP_G_CKSEL"]),
 	"RP_CSI" : (1 << PIN["RP_CSI"]),
+	"RP_RDWR" : (1 << PIN["RP_RDWR"]),
 }
 
 //-----------------------------------------------------------------------------
@@ -121,10 +125,11 @@ func gpio_unlock() {
 //-----------------------------------------------------------------------------
 func setup() {
 	gpio.Setup()
+	gpio.Set_all_input()
 
-	for k, v := range PIN {
-		switch k {
-			case "RP_PWOK", "RP_INIT", "RP_DONE", "RP_G_CKSEL": {
+	for _, v := range PIN {
+		switch v {
+			case PIN["RP_PWOK"], PIN["RP_INIT"], PIN["RP_DONE"], PIN["RP_G_CKSEL"]: {
 				gpio.Set_input(v)
 			}
 			default: {
@@ -168,7 +173,7 @@ func prog(infile string) {
 	file_size := f_info.Size()
 	fmt.Println("PROG: File size : ", file_size, " B")
 
-	//gpio.Clr_bus(uint32(PIN["RP_CCLK"]))
+	gpio.Clr_bus(uint32(PIN["RP_CCLK"]))
 
 	fmt.Println("PROG: Programming...")
 	buf := make([]byte, BUFSIZE)
@@ -191,15 +196,18 @@ func prog(infile string) {
 		read_byte += n
 
 		for i := 0; i < n; i = i+2 {
-			gpio.Clr_bus(0x00ffff00 | uint32(PIN_BIT["RP_CCLK"]))
-			//gpio.Set_bus(((uint32(buf[i]) << 8 | uint32(buf[i+1])) << 8) & 0x00ffff00)
-			gpio.Set_bus(((uint32(buf[i+1]) << 8 | uint32(buf[i])) << 8) & 0x00ffff00)
-			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))	// Assert CLK
+			data := (uint32(buf[i+1]) << 8 | uint32(buf[i])) << 8
+			gpio.Clr_bus((^data & 0x00ffff00) | uint32(PIN_BIT["RP_CCLK"]))
+			gpio.Set_bus((data & 0x00ffff00))
+			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
 
+			//if data != 0x00 {
+			//	fmt.Fprintf(os.Stderr,  "%d DEBUG: data = %08x\n", j, gpio.Get_bus())
+			//	j++
+			//}
 			//fmt.Printf("%x\n", gpio.Get_bus())
 
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio.Clr_bus(0x00ffff00 | uint32(PIN_BIT["RP_CCLK"]))
 				log.Fatal("Configuraion Error (while prog)")
 			}
 		}
@@ -214,7 +222,6 @@ func prog(infile string) {
 
 	for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
 		if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-			gpio.Clr_bus(0x00ffff00 | uint32(PIN_BIT["RP_CCLK"]))
 			log.Fatal("Configuration Error (while waiting)")
 		}
 		gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
@@ -223,6 +230,8 @@ func prog(infile string) {
 
 	gpio.Clr_bus(0x00ffff00 | uint32(PIN_BIT["RP_CCLK"]))
 	fmt.Println("PROG: FPGA program done")
+
+	defer gpio.Set_all_input()
 }
 
 //-----------------------------------------------------------------------------
@@ -258,6 +267,7 @@ func main() {
 	defer gpio_unlock();
 
 	setup()
+
 	prog(infile)
 }
 
