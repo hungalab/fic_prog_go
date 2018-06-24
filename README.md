@@ -12,7 +12,9 @@ nyacom (C) 2018.05 <kzh@nyacom.net>
 
 FiCのRPi上で以下のようにする
 
-    $ go run ficprog.go ledtest.bin
+    $ go run ficprog.go ledtest.bin [-m {8, 16}]
+
+-m は Selectmapのモードを指定するオプションで，8bit幅か16bit幅を選択する
 
 ビルドの仕方
 ----

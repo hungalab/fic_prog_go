@@ -73,20 +73,20 @@ func Set_all_input() {
 	mem32[2] = 0x00 // GPFSEL2
 }
 
-func Set_input(pin uint) {
+func Set_input(pin uint32) {
 	mem32[(pin/10)] &= ^(7 << ((pin % 10) * 3))
 }
 
-func Set_output(pin uint) {
+func Set_output(pin uint32) {
 	Set_input(pin)
 	mem32[(pin/10)] |= (1 << ((pin % 10) * 3))
 }
 //-----------------------------------------------------------------------------
-func Set_pin(pin uint) {
+func Set_pin(pin uint32) {
 	mem32[7] = Get_bus() | (1 << pin)
 }
 
-func Clr_pin(pin uint) {
+func Clr_pin(pin uint32) {
 	mem32[10] = Get_bus() | (1 << pin)
 }
 
@@ -98,7 +98,7 @@ func Clr_bus(v uint32) {
 	mem32[10] = v
 }
 
-func Get_pin(pin uint) uint32 {
+func Get_pin(pin uint32) uint32 {
 	return (mem32[13] & (1 << pin)) >> pin
 }
 

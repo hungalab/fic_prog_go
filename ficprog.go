@@ -10,7 +10,7 @@ package main
 
 import (
 	"fmt"
-//	"flag"
+	"flag"
 	"log"
 	"os"
 	"time"
@@ -28,7 +28,7 @@ const (
 )
 
 // PRi PINS
-var PIN = map[string] uint {
+var PIN = map[string] uint32 {
 	"RP_INIT" : 4,
 	"RP_PROG" : 5,
 	"RP_DONE" : 6,
@@ -59,13 +59,13 @@ var PIN = map[string] uint {
 	"RP_RDWR" : 27,
 }
 
-var PIN_BIT = map[string] uint {
+var PIN_BIT = map[string] uint32 {
+	"RP_PWOK" : (1 << PIN["RP_PWOK"]),	// Input
 	"RP_INIT" : (1 << PIN["RP_INIT"]),
-	"RP_PROG" : (1 << PIN["RP_PROG"]),
 	"RP_DONE" : (1 << PIN["RP_DONE"]),
-	"RP_CCLK" : (1 << PIN["RP_CCLK"]),
+	"RP_G_CKSEL" : (1 << PIN["RP_G_CKSEL"]),
 
-	"RP_CD0" : (1 << PIN["RP_CD0"]),
+	"RP_CD0" : (1 << PIN["RP_CD0"]),	// Output
 	"RP_CD1" : (1 << PIN["RP_CD1"]),
 	"RP_CD2" : (1 << PIN["RP_CD2"]),
 	"RP_CD3" : (1 << PIN["RP_CD3"]),
@@ -84,8 +84,8 @@ var PIN_BIT = map[string] uint {
 	"RP_CD16" : (1 << PIN["RP_CD16"]),
 	"RP_CD17" : (1 << PIN["RP_CD17"]),
 
-	"RP_PWOK" : (1 << PIN["RP_PWOK"]),
-	"RP_G_CKSEL" : (1 << PIN["RP_G_CKSEL"]),
+	"RP_PROG" : (1 << PIN["RP_PROG"]),
+	"RP_CCLK" : (1 << PIN["RP_CCLK"]),
 	"RP_CSI" : (1 << PIN["RP_CSI"]),
 	"RP_RDWR" : (1 << PIN["RP_RDWR"]),
 }
@@ -123,27 +123,148 @@ func gpio_unlock() {
 }
 
 //-----------------------------------------------------------------------------
-func setup() {
-	gpio.Setup()
+func init_pin16() {
 	gpio.Set_all_input()
-
 	for _, v := range PIN {
 		switch v {
+			// Set input
 			case PIN["RP_PWOK"], PIN["RP_INIT"], PIN["RP_DONE"], PIN["RP_G_CKSEL"]: {
 				gpio.Set_input(v)
 			}
+			// Set output
 			default: {
 				gpio.Set_output(v)
 				gpio.Clr_bus(1<<v)
 			}
 		}
 	}
-
-	// Check power ok
-	fmt.Println("CHECK: PW_OK:", gpio.Get_pin(PIN["RP_PWOK"]))
 }
 
-func prog(infile string) {
+//-----------------------------------------------------------------------------
+func init_pin8() {
+	gpio.Set_all_input()
+	for _, v := range PIN {
+		switch v {
+			// Set input
+			case PIN["RP_PWOK"], PIN["RP_INIT"], PIN["RP_DONE"], PIN["RP_G_CKSEL"]: {
+				gpio.Set_input(v)
+			}
+			// Set output
+			case PIN["RP_PROG"], PIN["RP_CCLK"], PIN["RP_CSI"], PIN["RP_RDWR"],
+				PIN["RP_CD0"], PIN["RP_CD1"], PIN["RP_CD2"], PIN["RP_CD3"],
+				PIN["RP_CD4"], PIN["RP_CD5"], PIN["RP_CD6"], PIN["RP_CD7"] : {
+				gpio.Set_output(v)
+				gpio.Clr_bus(1<<v)
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+func setup() {
+	gpio.Setup()
+	gpio.Set_all_input()
+
+	// Check power ok
+	//fmt.Println("CHECK: PW_OK:", gpio.Get_pin(PIN["RP_PWOK"]))
+}
+
+// prog with Selectmap 8 method
+func prog8(infile string) {
+	init_pin8()
+	fmt.Println("PROG: Entering Xilinx SelectMap x8 configuration mode...")
+
+	// Invoke configuration
+	gpio.Set_bus(uint32(PIN_BIT["RP_PROG"]))
+	gpio.Clr_bus(uint32(PIN_BIT["RP_PROG"]|PIN_BIT["RP_CSI"]|PIN_BIT["RP_RDWR"]))
+	gpio.Set_bus(uint32(PIN_BIT["RP_PROG"]))
+
+	for gpio.Get_pin(PIN["RP_INIT"]) == 0 {
+		time.Sleep(1 * time.Second)
+	}
+
+	fmt.Println("PROG: Ready to program")
+
+	// Open bin file
+	f, err := os.Open(infile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer f.Close()
+
+	f_info, err := f.Stat()
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	file_size := f_info.Size()
+	fmt.Println("PROG: File size : ", file_size, " B")
+
+	gpio.Clr_bus(uint32(PIN["RP_CCLK"]))
+
+	fmt.Println("PROG: Programming...")
+	buf := make([]byte, BUFSIZE)
+
+	read_byte := 0
+
+	for ;; {
+		n, err := f.Read(buf)
+
+		if n == 0 {
+			// read byte is 0
+			break
+		}
+
+		if err != nil {
+			// something happened
+			log.Fatal(err)
+		}
+
+		read_byte += n
+
+		for i := 0; i < n; i = i + 1 {
+			data := (uint32(buf[i]) << 8)
+			gpio.Clr_bus((^data & 0x0000ff00) | uint32(PIN_BIT["RP_CCLK"]))
+			gpio.Set_bus((data & 0x0000ff00))
+			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
+
+			//if data != 0x00 {
+			//	fmt.Fprintf(os.Stderr,  "%d DEBUG: data = %08x\n", j, gpio.Get_bus())
+			//	j++
+			//}
+			//fmt.Printf("%x\n", gpio.Get_bus())
+
+			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
+				log.Fatal("Configuraion Error (while prog)")
+			}
+		}
+
+		fmt.Printf("PROG: %d / %d (%.2f %%)\n",
+			read_byte, file_size, float32(read_byte) / float32(file_size) * 100)
+	}
+
+	//gpio.Clr_bus(uint32(PIN_BIT["RP_CCLK"]))	// Negate CLK
+
+	fmt.Println("PROG: Waiting FPGA done")
+
+	for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
+		if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
+			log.Fatal("Configuration Error (while waiting)")
+		}
+		gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
+		gpio.Clr_bus(uint32(PIN_BIT["RP_CCLK"]))
+	}
+
+	gpio.Clr_bus(0x0000ff00 | uint32(PIN_BIT["RP_CCLK"]))
+	fmt.Println("PROG: FPGA program done")
+
+	defer gpio.Set_all_input()
+}
+
+// prog with Selectmap 16 method
+func prog16(infile string) {
+	init_pin16()
 	fmt.Println("PROG: Entering Xilinx SelectMap x16 configuration mode...")
 
 	// Invoke configuration
@@ -195,7 +316,7 @@ func prog(infile string) {
 
 		read_byte += n
 
-		for i := 0; i < n; i = i+2 {
+		for i := 0; i < n; i = i + 2 {
 			data := (uint32(buf[i+1]) << 8 | uint32(buf[i])) << 8
 			gpio.Clr_bus((^data & 0x00ffff00) | uint32(PIN_BIT["RP_CCLK"]))
 			gpio.Set_bus((data & 0x00ffff00))
@@ -239,35 +360,63 @@ func init() {
 	fmt.Println("")
 	fmt.Println("FiC FPGA Configurator (golang ver)")
 	fmt.Println("nyacom (C) 2018.05 <kzh@nyacom.net>")
+}
 
-	//f := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	//fileOpt := f.String(" ", "default", "*.mcs file for FPGA")
+func help_str() {
+	fmt.Println("Usage: ficprog.go INPUT_FILE.bin [-m {8, 16}]")
+}
 
-	//f.Parse(os.Args[1:])
-	//for 0 < f.NArg() {
-	//	f.Parse(f.Args()[1:])
-	//}
-
+func main() {
 	// Check arguments
 	if len(os.Args) < 2 {
 		help_str()
 		log.Fatal("Insufficient argument")
 	}
-}
 
-func help_str() {
-	fmt.Println("Usage: ficprog.go INPUT_FILE.bin")
-}
+	if os.Args[1] == "help" {
+	}
 
-func main() {
-	infile := os.Args[1]
-	fmt.Println("Filename: ", infile)
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	var (
+		confMode = fs.Int("m", 16, "Selectmap mode (default 16)")
+	)
 
+	noopt := os.Args[1]
+	fs.Parse(os.Args[1:])
+
+	left_args := fs.Args()
+	if len(left_args) > 0 {
+		noopt = left_args[0]
+	}
+	fs.Parse(left_args[1:])
+
+	// Check options
+	if *confMode != 8 && *confMode != 16 {
+		log.Fatal("Error: Invalid configurtaion mode")
+	}
+
+	// Help
+	if noopt == "help" {
+		help_str()
+		return
+	}
+
+	infile := noopt
+
+	// Create GPIO lockfile
 	gpio_lock();
 	defer gpio_unlock();
 
+	// GPIO setup
 	setup()
 
-	prog(infile)
+	// Select configuration mode
+	switch *confMode {
+	case 8:
+		prog8(infile)
+
+	case 16:
+		prog16(infile)
+	}
 }
 
