@@ -4,17 +4,18 @@ FiC FPGA configurator (golang 版)
 nyacom (C) 2018.05 <kzh@nyacom.net>
 
 * yakuza様のFiC progをgolangで焼き直したバージョン
-* おそらく，こっちのほうが中身何やってるかわかりやすいハズ...?
 * このプログラマはsudoしなくてもユーザ権限で動く
+  * raspbianではユーザをgpioグループに入れておく必要がある。
 
 使い方
 ----
 
 FiCのRPi上で以下のようにする
 
-    $ go run ficprog.go ledtest.bin [-m {8, 16}]
+    $ go run ficprog.go ledtest.bin [-m {8, 16}] [-c]
 
 -m は Selectmapのモードを指定するオプションで，8bit幅か16bit幅を選択する
+-c は PR用にINITBをアサートせずにプログラミングする
 
 ビルドの仕方
 ----
