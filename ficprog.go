@@ -23,9 +23,6 @@ import (
 )
 
 const (
-	LOCKFILE = "/tmp/gpio.lock"
-	TIMEOUT = 5
-	LOCKEXPIRE = 120
 	BUFSIZE = (2*1024*1024)
 )
 
@@ -93,38 +90,6 @@ var PIN_BIT = map[string] uint32 {
 }
 
 //-----------------------------------------------------------------------------
-// Create lockfile before GPIO operation
-//-----------------------------------------------------------------------------
-func gpio_lock() {
-	t1 := time.Now()
-	for stat, err := os.Stat(LOCKFILE); !os.IsNotExist(err); {
-		// Check if the lockfile is too old -> bug?
-		if (time.Now().Sub(stat.ModTime())).Seconds() > LOCKEXPIRE {
-			break
-		}
-
-		time.Sleep(1 * time.Second)
-
-		t2 := time.Now()
-		if (t2.Sub(t1)).Seconds() > TIMEOUT {
-			log.Fatal("gpio lock timeout")
-		}
-	}
-
-	fd, err := os.OpenFile(LOCKFILE, os.O_CREATE, 0666);
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer fd.Close()
-}
-
-func gpio_unlock() {
-	if err:= os.Remove(LOCKFILE); err != nil {
-		log.Fatal(err)
-	}
-}
-
-//-----------------------------------------------------------------------------
 func init_pin16() {
 	gpio.Set_all_input()
 	for _, v := range PIN {
@@ -175,7 +140,7 @@ func init_pin8() {
 }
 
 //-----------------------------------------------------------------------------
-func setup() {
+func Setup() {
 	gpio.Setup()
 	gpio.Set_all_input()
 
@@ -184,7 +149,7 @@ func setup() {
 }
 
 // prog with Selectmap 8 method
-func prog8(infile string, prMode bool)(err error){
+func Prog8(infile string, prMode bool)(err error){
 	fmt.Println("PROG: Entering Xilinx SelectMap x8 configuration mode...")
 
 	init_pin8()
@@ -258,7 +223,7 @@ func prog8(infile string, prMode bool)(err error){
 			//fmt.Printf("%x\n", gpio.Get_bus())
 
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio_unlock();
+				gpio.Gpio_unlock();
 				return errors.New("Configuraion Error (while prog)")
 			}
 		}
@@ -274,7 +239,7 @@ func prog8(infile string, prMode bool)(err error){
 
 		for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio_unlock();
+				gpio.Gpio_unlock();
 				return errors.New("Configuration Error (while waiting)")
 			}
 			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
@@ -291,7 +256,7 @@ func prog8(infile string, prMode bool)(err error){
 }
 
 // prog with Selectmap 16 method
-func prog16(infile string, prMode bool)(err error) {
+func Prog16(infile string, prMode bool)(err error) {
 	fmt.Println("PROG: Entering Xilinx SelectMap x16 configuration mode...")
 
 	init_pin16()
@@ -379,7 +344,7 @@ func prog16(infile string, prMode bool)(err error) {
 
 		for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio_unlock();
+				gpio.Gpio_unlock();
 				return errors.New("Configuration Error (while waiting)")
 			}
 			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
@@ -447,8 +412,10 @@ func main() {
 	infile := noopt
 
 	// Create GPIO lockfile
-	gpio_lock();
-	defer gpio_unlock();
+	if lock := gpio.Gpio_lock(); !lock {
+		log.Fatal("Error: Can't lock for GPIO")
+	}
+	defer gpio.Gpio_unlock();
 
 	// Signal handring
 	sig_ch := make(chan os.Signal, 1)
@@ -462,24 +429,24 @@ func main() {
 		for sig := range sig_ch {
 			close(sig_ch)
 			fmt.Println("INTR:", sig)
-			gpio_unlock()
+			gpio.Gpio_unlock()
 			os.Exit(1)
 		}
 	} ()
 
 	// GPIO setup
-	setup()
+	Setup()
 
 	// Select configuration mode
 	switch *confMode {
 	case 8:
-		err := prog8(infile, *prMode)
+		err := Prog8(infile, *prMode)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err, "\n")
 		}
 
 	case 16:
-		err := prog16(infile, *prMode)
+		err := Prog16(infile, *prMode)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err, "\n")
 		}
