@@ -223,7 +223,6 @@ func Prog8(infile string, prMode bool)(err error){
 			//fmt.Printf("%x\n", gpio.Get_bus())
 
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio.Gpio_unlock();
 				return errors.New("Configuraion Error (while prog)")
 			}
 		}
@@ -239,7 +238,6 @@ func Prog8(infile string, prMode bool)(err error){
 
 		for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio.Gpio_unlock();
 				return errors.New("Configuration Error (while waiting)")
 			}
 			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
@@ -344,7 +342,6 @@ func Prog16(infile string, prMode bool)(err error) {
 
 		for gpio.Get_pin(PIN["RP_DONE"]) == 0 {		// Wait until RP_DONE asserted
 			if gpio.Get_pin(PIN["RP_INIT"]) == 0 {
-				gpio.Gpio_unlock();
 				return errors.New("Configuration Error (while waiting)")
 			}
 			gpio.Set_bus(uint32(PIN_BIT["RP_CCLK"]))
@@ -412,7 +409,7 @@ func main() {
 	infile := noopt
 
 	// Create GPIO lockfile
-	if lock := gpio.Gpio_lock(); !lock {
+	if err := gpio.Gpio_lock(); err != nil {
 		log.Fatal("Error: Can't lock for GPIO")
 	}
 	defer gpio.Gpio_unlock();
